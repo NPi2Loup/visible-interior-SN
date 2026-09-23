@@ -17,6 +17,10 @@ namespace VisibleLockerInterior
             "99cdec62-302b-4999-ba49-f50c73575a4d";
         public const string CreepvineSeed = "e0b1f772-b1bd-43a3-9b56-5f6979aab42d";
         public const string Flashlight = "12c95e66-fb54-47b3-87f1-8e318394b839";
+        //Animated creature: the manual bounds pin below keeps its placement stable (the
+        //measured live-skin box varies with the animation frame the item was captured in,
+        //and the bind-pose box centers the S-shaped body off its slot).
+        public const string Floater = "b409ed8d-9a73-4140-ac06-3aa60b66aa47";
         public const string Gravsphere = "d11dfcc3-bce7-4870-a112-65a5dab5141b";
         public const string JeweledDiskPiece = "b447ac10-bf6b-4005-8ffc-8d9a4e84450b";
         public const string kyanite = "6e7f3d62-7e76-4415-af64-5dcd88fc3fe4";
@@ -24,6 +28,17 @@ namespace VisibleLockerInterior
         public const string Pipe = "08078333-1a00-42f8-8492-e2640c17a961";
         public const string PlasteelTank = "7835815a-da3b-474a-8585-8716c637bae6";
         public const string PrecursorIonBattery = "811c128d-a85f-4b0a-b9c4-4071db4fb7aa";
+        //In-game pickupable key (prefab "Precursor_PurpleKey", Environment\Precursor):
+        //the ClassId actually seen on stored items (verified against the in-game prefab name).
+        public const string PrecursorKey_Purple = "53ffa3e8-f2f7-43b8-a5c7-946e766aff64";
+        //Alternate "Doodads" variants found in the asset export (Doodads\Precursor).
+        //Not observed on stored items as of build 1.22.83031; kept in case they appear
+        //(they share the same geometry/collider as the in-game prefabs).
+        public const string PrecursorKey_BlueDoodads = "2a347bb2-a20e-4902-a803-4252d9da5c30";
+        public const string PrecursorKey_OrangeDoodads = "e10ce5d9-9675-4553-bf33-b17e93e3aab4";
+        public const string PrecursorKey_PurpleDoodads = "92fb421e-a3f6-4b0b-8542-fd4faee4202a";
+        public const string PrecursorKey_RedDoodads = "7d19f47b-6ec6-4a25-9b28-b3fd7f5661b7";
+        public const string PrecursorKey_WhiteDoodads = "066e533d-f854-435d-82c6-b28ba59858e0";
         public const string RadiationGloves = "fa9b3999-d201-47fc-a8c5-e7c4030b6b60";
         public const string RadiationHelmet = "22001838-381d-492d-9f02-aa1233f5a55d";
         public const string RadiationSuit = "e862224b-3da8-41bd-809e-6d26ae557ea5";
@@ -41,8 +56,18 @@ namespace VisibleLockerInterior
 
     internal class Quirk
     {
+        //Master gate for the manual placement tuning (the rotation switch and the three
+        //override dictionaries below). While disabled, every item is placed dynamically:
+        //identity rotation, size from the visible geometry extent, bottom of that extent
+        //on the shelf. Re-enable to restore the per-item placement above.
+        //(A static readonly, not a const: the gated code must stay reachable for the compiler.)
+        public static readonly bool LegacyTuningEnabled = true;
+
         public static Quaternion GetIdealRotationByTechType(TechType techType)
         {
+            if (!LegacyTuningEnabled)
+                return Quaternion.identity;
+
             switch (techType)
             {
                 case TechType.PipeSurfaceFloater:
@@ -242,6 +267,15 @@ namespace VisibleLockerInterior
                     )
                 },
                 {
+                    //Measured from log.11 (bounds for 'Floater', F3): the box of the capture
+                    //pose that reads centered and grounded in the locker.
+                    PrefabId.Floater,
+                    new Bounds(
+                        new Vector3(-0.001f, -0.070f, -0.005f),
+                        new Vector3(0.597f, 0.581f, 0.594f)
+                    )
+                },
+                {
                     PrefabId.CreepvineSeed,
                     new Bounds(
                         new Vector3(-0.005938541f, 0.02861457f, 0.0419246f),
@@ -288,6 +322,48 @@ namespace VisibleLockerInterior
                     new Bounds(
                         new Vector3(0.02211406f, 0.01890655f, 0.3162712f),
                         new Vector3(0.2704018f, 0.2633288f, 0.8359069f)
+                    )
+                },
+                {
+                    PrefabId.PrecursorKey_Purple,
+                    new Bounds(
+                        new Vector3(-0.00345f, -0.00517f, 0.00075f),
+                        new Vector3(0.61585f, 0.13244f, 0.78711f)
+                    )
+                },
+                {
+                    PrefabId.PrecursorKey_BlueDoodads,
+                    new Bounds(
+                        new Vector3(-0.00345f, -0.00517f, 0.00075f),
+                        new Vector3(0.61585f, 0.13244f, 0.78711f)
+                    )
+                },
+                {
+                    PrefabId.PrecursorKey_OrangeDoodads,
+                    new Bounds(
+                        new Vector3(-0.00345f, -0.00517f, 0.00075f),
+                        new Vector3(0.61585f, 0.13244f, 0.78711f)
+                    )
+                },
+                {
+                    PrefabId.PrecursorKey_PurpleDoodads,
+                    new Bounds(
+                        new Vector3(-0.00345f, -0.00517f, 0.00075f),
+                        new Vector3(0.61585f, 0.13244f, 0.78711f)
+                    )
+                },
+                {
+                    PrefabId.PrecursorKey_RedDoodads,
+                    new Bounds(
+                        new Vector3(-0.00345f, -0.00517f, 0.00075f),
+                        new Vector3(0.61585f, 0.13244f, 0.78711f)
+                    )
+                },
+                {
+                    PrefabId.PrecursorKey_WhiteDoodads,
+                    new Bounds(
+                        new Vector3(-0.00345f, -0.00517f, 0.00075f),
+                        new Vector3(0.61585f, 0.13244f, 0.78711f)
                     )
                 },
                 {
@@ -381,6 +457,19 @@ namespace VisibleLockerInterior
                         new Vector3(0.3017175f, 0.06471497f, 0.4511945f)
                     )
                 },
+            };
+
+        //TechType-keyed bounds, used when the in-game ClassId of a prefab is unknown or
+        //differs from the asset-export variants (as with the Precursor keys, whose
+        //in-game prefab ClassId differs from the Doodads export variants).
+        //Checked after overrideBounds.
+        public static readonly Dictionary<TechType, Bounds> overrideBoundsByTechType =
+            new Dictionary<TechType, Bounds> {
+                { TechType.PrecursorKey_Red,     new Bounds(new Vector3(-0.00345f, -0.00517f, 0.00075f), new Vector3(0.61585f, 0.13244f, 0.78711f)) },
+                { TechType.PrecursorKey_Blue,    new Bounds(new Vector3(-0.00345f, -0.00517f, 0.00075f), new Vector3(0.61585f, 0.13244f, 0.78711f)) },
+                { TechType.PrecursorKey_Orange,  new Bounds(new Vector3(-0.00345f, -0.00517f, 0.00075f), new Vector3(0.61585f, 0.13244f, 0.78711f)) },
+                { TechType.PrecursorKey_White,   new Bounds(new Vector3(-0.00345f, -0.00517f, 0.00075f), new Vector3(0.61585f, 0.13244f, 0.78711f)) },
+                { TechType.PrecursorKey_Purple,  new Bounds(new Vector3(-0.00345f, -0.00517f, 0.00075f), new Vector3(0.61585f, 0.13244f, 0.78711f)) },
             };
 
         public static readonly Dictionary<string, float> overrideDeltaScale =

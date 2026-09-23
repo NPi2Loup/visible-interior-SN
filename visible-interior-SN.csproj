@@ -5,7 +5,7 @@
     <AssemblyName>VisibleLockerInterior</AssemblyName>
     <RootNamespace>VisibleLockerInterior</RootNamespace>
     <Description>Visible locker interior for Subnautica</Description>
-    <Version>2.0.4</Version>
+    <Version>2.0.5</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>8.0</LangVersion>
     <Product>Visible Locker Interior</Product>
@@ -54,31 +54,29 @@
     <Reference Update="System.Xml.Linq">
       <Private>False</Private>
     </Reference>
+    <!--Raw game assemblies (Subnautica 1.22.83031, June 2026 build). Every member we touch is public and
+          OnClose is patched by name string (see Patches), so no publicizer is needed.
+          Copy the two DLLs from your game install to the repository root (they are
+          gitignored), the same convention as the publicized assemblies used before.-->
     <Reference Include="Assembly-CSharp">
-      <HintPath>Subnautica_Data\Managed\publicized_assemblies\Assembly-CSharp_publicized.dll</HintPath>
+      <HintPath>Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>Subnautica_Data\Managed\publicized_assemblies\Assembly-CSharp-firstpass_publicized.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>Subnautica_Data\Managed\publicized_assemblies\Assembly-CSharp-firstpass-publicized.dll</HintPath>
-    </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>Subnautica_Data\Managed\publicized_assemblies\Assembly-CSharp-publicized.dll</HintPath>
+      <HintPath>Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
     </Reference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net481" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="AssemblyPublicizer\" />
-    <Folder Include="Subnautica_Data\Managed\publicized_assemblies\" />
   </ItemGroup>
 
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <Nullable>enable</Nullable>
   </PropertyGroup>

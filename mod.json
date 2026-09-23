@@ -2,7 +2,7 @@
   "Id": "VisibleLockerInterior",
   "DisplayName": "Visible Locker Content",
   "Author": "Jan Marucha, HenryJk, Russ Judge",
-  "Version": "2.0.3",
+  "Version": "2.0.5",
   "Enable": true,
   "AssemblyName": "VisibleLockerInterior.dll",
   "VersionDependencies": {},

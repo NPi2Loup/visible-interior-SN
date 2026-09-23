@@ -398,3 +398,7 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 /Subnautica_Data/Managed/publicized_assemblies
+
+# Game assemblies (copy from your Subnautica install to build; see README)
+/Assembly-CSharp.dll
+/Assembly-CSharp-firstpass.dll

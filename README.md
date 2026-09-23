@@ -56,6 +56,13 @@ be installed and working for these instructions to work.
     of your Subnautica game folder.
 9. Run Subnautica and hope it worked.
 
+### Building against Subnautica 1.22 (changeset 83031)
+
+Subnautica 1.22 removes the need for the publicizer step: every game member
+this mod touches is public now. Copy `Assembly-CSharp.dll` and
+`Assembly-CSharp-firstpass.dll` from your game install (in the 1.22 layout
+they sit in the game root folder) to the repository root, then build the
+project as usual. The two DLLs are gitignored.
 
 ## Contributing
 
