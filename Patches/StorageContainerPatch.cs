@@ -59,6 +59,20 @@ namespace VisibleLockerInterior
             Controller.UpdateInterior(__instance);
     }
 
+    //OnOpen (also protected, patch by name) rebuilds the interior on every open.
+    //Recovery for the menu round-trip case: the surviving locker container never
+    //re-Awakes after the second world load (world entities are reused, "found
+    //existing ... at cell"), while the dummies were destroyed during the first
+    //teardown (OnClose fired while the container's items were unparented). Opening
+    //the locker re-runs UpdateInterior and rebuilds the dummies from the items.
+    [HarmonyPatch(typeof(StorageContainer), "OnOpen")]
+    internal class PatchOpenAction
+    {
+        [HarmonyPostfix]
+        public static void Postfix(StorageContainer __instance) =>
+            Controller.UpdateInterior(__instance);
+    }
+
     //[HarmonyPatch(typeof(ItemsContainer), nameof(ItemsContainer.OnResize))]
     //internal class PatchItemsContainerResize
     //{
