@@ -4,7 +4,8 @@
     <AssemblyName>VisibleLockerInterior</AssemblyName>
     <RootNamespace>VisibleLockerInterior</RootNamespace>
     <Description>Visible locker interior for Subnautica: Below Zero</Description>
-    <Version>2.0.5-bz1</Version>
+    <!-- Plain MAJOR.MINOR.PATCH only: BepInEx 5.4.23 parses it with System.Version, no pre-release suffixes -->
+    <Version>2.0.5</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>8.0</LangVersion>
     <Product>Visible Locker Interior (Below Zero)</Product>

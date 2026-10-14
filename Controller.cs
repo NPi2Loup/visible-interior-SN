@@ -29,14 +29,35 @@ namespace VisibleLockerInterior
         private static readonly Dictionary<string, Bounds> rendererBoundsCache = new Dictionary<string, Bounds>();
         private static readonly HashSet<string> boundsLogged = new HashSet<string>();
 
+        private static bool nonLockerNameLogged = false;
+        private static bool nullContainerLogged = false;
+
         // exclude: GameObject of an item that is being removed from the container right now.
         // The game fires onRemoveItem BEFORE the item is un-parented from storageRoot,
         // so without this exclusion its dummy would never be removed (the "last item
         // remains visible" bug reported on the Nexus page).
         public static void UpdateInterior(StorageContainer sc, GameObject? exclude = null)
         {
-            if ("Locker(Clone)" != sc.prefabRoot.name) return;
-            if (sc.container == null || sc.storageRoot == null) return;
+            if ("Locker(Clone)" != sc.prefabRoot.name)
+            {
+                if (!nonLockerNameLogged)
+                {
+                    nonLockerNameLogged = true;
+                    Plugin.Log(LogLevel.Warning,
+                        $"VisibleLockerInterior: StorageContainer prefabRoot name '{sc.prefabRoot.name}' != 'Locker(Clone)' -- mod will not activate for this container. Update the name filter for this game build.");
+                }
+                return;
+            }
+            if (sc.container == null || sc.storageRoot == null)
+            {
+                if (!nullContainerLogged)
+                {
+                    nullContainerLogged = true;
+                    Plugin.Log(LogLevel.Warning,
+                        $"VisibleLockerInterior: StorageContainer '{sc.prefabRoot.name}' has null container/storageRoot -- cannot build the interior.");
+                }
+                return;
+            }
 
             var storageRoot = sc.storageRoot.gameObject;
             var interior = GetInteriorInstance(sc);
