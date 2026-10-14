@@ -1,4 +1,7 @@
-﻿using HarmonyLib;
+﻿using BepInEx.Logging;
+using System;
+using HarmonyLib;
+using UnityEngine;
 
 namespace VisibleLockerInterior
 {
@@ -7,16 +10,30 @@ namespace VisibleLockerInterior
     [HarmonyPatch(typeof(StorageContainer), nameof(StorageContainer.Awake))]
     internal class PatchStorageContainerAwake
     {
+        //Reload diagnostics: after an in-game menu round-trip the second world load
+        //produced NO UpdateInterior logs at all (neither Info nor per-name warnings).
+        //Log the first Awake calls per process (plus any Locker* root) to tell
+        //"patch dead" from "containers not re-instantiated" from "unexpected name".
+        private static int awakeCallCount;
+
         [HarmonyPostfix]
         public static void Postfix(StorageContainer __instance)
         {
+            int n = ++awakeCallCount;
+            string rootName = __instance.prefabRoot != null ? __instance.prefabRoot.name : "<null prefabRoot>";
+            if (n <= 20 || rootName.StartsWith("Locker", StringComparison.Ordinal))
+            {
+                Plugin.Log(LogLevel.Info,
+                    $"VisibleLockerInterior: StorageContainer.Awake #{n}: '{rootName}' worldPos={(__instance.prefabRoot != null ? __instance.prefabRoot.transform.position : Vector3.zero)}");
+            }
+
             Controller.UpdateInterior(__instance);
 
             //Refresh the interior display as soon as an item is added or removed.
             //Only the locker itself gets the live subscriptions: this patch runs for
             //every StorageContainer in the game (craft tables, storage cubes...), and
             //UpdateInterior early-returns for the ones that are not the locker.
-            if (__instance.container != null && "Locker(Clone)" == __instance.prefabRoot.name)
+            if (__instance.container != null && rootName.StartsWith("Locker", StringComparison.Ordinal))
             {
                 //onAddItem fires AFTER the item has been parented under storageRoot,
                 //so it is already visible to GetSortedItems.

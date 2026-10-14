@@ -29,24 +29,29 @@ namespace VisibleLockerInterior
         private static readonly Dictionary<string, Bounds> rendererBoundsCache = new Dictionary<string, Bounds>();
         private static readonly HashSet<string> boundsLogged = new HashSet<string>();
 
-        //Material shader-property enumeration, resolved by reflection (see SanitizeObject).
-        private static readonly MethodInfo MatGetPropCount = typeof(Material).GetMethod("GetPropertyCount", BindingFlags.Instance | BindingFlags.Public);
-        private static readonly MethodInfo MatGetPropName = typeof(Material).GetMethod("GetPropertyName", BindingFlags.Instance | BindingFlags.Public);
-        private static readonly MethodInfo MatGetPropType = typeof(Material).GetMethod("GetPropertyType", BindingFlags.Instance | BindingFlags.Public);
-        private static readonly object? MptFloat, MptRange, MptVector, MptInteger;
+        //Shader property enumeration, resolved by reflection (see SanitizeObject).
+        //IMPORTANT: in this game build (Unity 2019.4.36) those APIs live on Shader,
+        //NOT Material -- Material.GetPropertyCount/GetPropertyName/GetPropertyType do
+        //not exist here (added to Material in much newer Unity), so binding them on
+        //typeof(Material) returned null and silently disabled the whole block.
+        private static readonly MethodInfo ShGetPropCount = typeof(Shader).GetMethod("GetPropertyCount", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly MethodInfo ShGetPropName = typeof(Shader).GetMethod("GetPropertyName", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly MethodInfo ShGetPropType = typeof(Shader).GetMethod("GetPropertyType", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly object? SptFloat, SptRange, SptVector;
         static Controller()
         {
             try
             {
-                var mpt = MatGetPropType?.ReturnType;
-                MptFloat = mpt?.GetField("Float")?.GetValue(null);
-                MptRange = mpt?.GetField("Range")?.GetValue(null);
-                MptVector = mpt?.GetField("Vector")?.GetValue(null);
-                MptInteger = mpt?.GetField("Integer")?.GetValue(null);
+                //UnityEngine.Rendering.ShaderPropertyType values in this Unity build:
+                //Color, Vector, Float, Range, Texture (no Int).
+                var spt = ShGetPropType?.ReturnType;
+                SptFloat = spt?.GetField("Float")?.GetValue(null);
+                SptRange = spt?.GetField("Range")?.GetValue(null);
+                SptVector = spt?.GetField("Vector")?.GetValue(null);
             }
             catch
             {
-                MptFloat = null; MptRange = null; MptVector = null; MptInteger = null;
+                SptFloat = null; SptRange = null; SptVector = null;
             }
         }
 
@@ -320,26 +325,27 @@ namespace VisibleLockerInterior
             //Zero any material parameter whose name looks like an animation driver so the
             //dummy holds a single pose. Material.GetProperty* is looked up by reflection:
             //the NuGet UnityEngine compile stub lacks those APIs (the game has them at runtime).
-            if (MatGetPropCount != null && MatGetPropName != null && MatGetPropType != null)
+            if (ShGetPropCount != null && ShGetPropName != null && ShGetPropType != null)
             {
-                int PropCount(Material m) => (int)MatGetPropCount.Invoke(m, null)!;
-                string PropName(Material m, int p) => (string)MatGetPropName.Invoke(m, new object[] { p })!;
-                object PropType(Material m, int p) => MatGetPropType.Invoke(m, new object[] { p })!;
+                int ShPropCount(Shader sh) => (int)ShGetPropCount.Invoke(sh, null)!;
+                string ShPropName(Shader sh, int p) => (string)ShGetPropName.Invoke(sh, new object[] { p })!;
+                object ShPropType(Shader sh, int p) => ShGetPropType.Invoke(sh, new object[] { p })!;
                 bool IsAnimProp(string n)
                 {
+                    if (n == null) return false;
                     foreach (var k in AnimPropKeywords)
                     {
                         if (n.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0) return true;
                     }
                     return false;
                 }
-                string AllPropNames(Material m)
+                string AllShaderProps(Shader sh)
                 {
                     var sb = new StringBuilder();
-                    for (int p = 0; p < PropCount(m); p++)
+                    for (int p = 0; p < ShPropCount(sh); p++)
                     {
                         if (sb.Length > 0) sb.Append(", ");
-                        sb.Append(PropName(m, p));
+                        sb.Append(ShPropName(sh, p));
                     }
                     return sb.ToString();
                 }
@@ -347,13 +353,14 @@ namespace VisibleLockerInterior
                 foreach (var r in obj.GetComponents<Renderer>())
                 {
                     if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer)) continue;
+                    var smats = r.sharedMaterials;
                     bool hasAnim = false;
-                    foreach (var sm in r.sharedMaterials)
+                    foreach (var sm in smats)
                     {
-                        if (sm == null) continue;
-                        for (int p = 0; p < PropCount(sm); p++)
+                        if (sm == null || sm.shader == null) continue;
+                        for (int p = 0; p < ShPropCount(sm.shader); p++)
                         {
-                            if (IsAnimProp(PropName(sm, p)))
+                            if (IsAnimProp(ShPropName(sm.shader, p)))
                             {
                                 hasAnim = true;
                                 break;
@@ -366,13 +373,11 @@ namespace VisibleLockerInterior
                     //parameter the keyword list does not cover (LogOutput.log).
                     if (IsPlantish(obj.name) && animPropsLogged.Add(obj.name))
                     {
-                        Material? first = null;
-                        foreach (var sm in r.sharedMaterials)
+                        foreach (var sm in smats)
                         {
-                            if (sm != null) { first = sm; break; }
+                            if (sm != null && sm.shader != null)
+                                Plugin.Log(LogLevel.Info, $"VisibleLockerInterior: '{obj.name}' -- shader '{sm.shader.name}' properties: {AllShaderProps(sm.shader)}");
                         }
-                        if (first != null)
-                            Plugin.Log(LogLevel.Info, $"VisibleLockerInterior: '{obj.name}' -- material properties ({r.sharedMaterials.Length} material(s)): {AllPropNames(first)}");
                     }
                     if (!hasAnim) continue;
 
@@ -380,17 +385,16 @@ namespace VisibleLockerInterior
                     for (int mi = 0; mi < mats.Length; mi++)
                     {
                         var m = mats[mi];
-                        if (m == null) continue;
-                        for (int p = 0; p < PropCount(m); p++)
+                        if (m == null || m.shader == null) continue;
+                        for (int p = 0; p < ShPropCount(m.shader); p++)
                         {
-                            if (!IsAnimProp(PropName(m, p))) continue;
-                            var t = PropType(m, p);
-                            if (Equals(t, MptFloat) || Equals(t, MptRange))
-                                m.SetFloat(p, 0f);
-                            else if (Equals(t, MptVector))
-                                m.SetVector(p, Vector3.zero);
-                            else if (Equals(t, MptInteger))
-                                m.SetInt(p, 0);
+                            string name = ShPropName(m.shader, p);
+                            if (!IsAnimProp(name)) continue;
+                            var t = ShPropType(m.shader, p);
+                            if (Equals(t, SptFloat) || Equals(t, SptRange))
+                                m.SetFloat(name, 0f);
+                            else if (Equals(t, SptVector))
+                                m.SetVector(name, Vector4.zero);
                         }
                     }
                     Plugin.Log(LogLevel.Debug, $"VisibleLockerInterior: '{obj.name}' -- zeroed shader animation parameter(s) (static pose).");
