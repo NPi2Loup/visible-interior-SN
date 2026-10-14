@@ -29,6 +29,26 @@ namespace VisibleLockerInterior
         private static readonly Dictionary<string, Bounds> rendererBoundsCache = new Dictionary<string, Bounds>();
         private static readonly HashSet<string> boundsLogged = new HashSet<string>();
 
+        //Material shader-property enumeration, resolved by reflection (see SanitizeObject).
+        private static readonly MethodInfo MatGetPropCount = typeof(Material).GetMethod("GetPropertyCount", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly MethodInfo MatGetPropName = typeof(Material).GetMethod("GetPropertyName", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly MethodInfo MatGetPropType = typeof(Material).GetMethod("GetPropertyType", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly object? MptFloat, MptRange, MptVector;
+        static Controller()
+        {
+            try
+            {
+                var mpt = MatGetPropType?.ReturnType;
+                MptFloat = mpt?.GetField("Float")?.GetValue(null);
+                MptRange = mpt?.GetField("Range")?.GetValue(null);
+                MptVector = mpt?.GetField("Vector")?.GetValue(null);
+            }
+            catch
+            {
+                MptFloat = null; MptRange = null; MptVector = null;
+            }
+        }
+
         private static bool nonLockerNameLogged = false;
         private static bool nullContainerLogged = false;
 
@@ -281,6 +301,55 @@ namespace VisibleLockerInterior
                     }
                 }
             } while (destroyList.Count > 0);
+
+            //Plants (kelp, creepvine, coral, ...) sway through vertex wind driven by shader
+            //parameters, which survives the component sanitization above. Zero any
+            //wind-related material parameter so the dummy holds a single pose.
+            //Material.GetProperty* is looked up by reflection: the NuGet UnityEngine
+            //compile stub lacks those APIs (the game engine has them at runtime).
+            if (MatGetPropCount != null && MatGetPropName != null && MatGetPropType != null)
+            {
+                int PropCount(Material m) => (int)MatGetPropCount.Invoke(m, null)!;
+                string PropName(Material m, int p) => (string)MatGetPropName.Invoke(m, new object[] { p })!;
+                object PropType(Material m, int p) => MatGetPropType.Invoke(m, new object[] { p })!;
+
+                foreach (var r in obj.GetComponents<Renderer>())
+                {
+                    if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer)) continue;
+                    bool hasWind = false;
+                    foreach (var sm in r.sharedMaterials)
+                    {
+                        if (sm == null) continue;
+                        for (int p = 0; p < PropCount(sm); p++)
+                        {
+                            if (PropName(sm, p).IndexOf("wind", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                hasWind = true;
+                                break;
+                            }
+                        }
+                        if (hasWind) break;
+                    }
+                    if (!hasWind) continue;
+
+                    var mats = r.materials; //instance copies, safe to modify
+                    for (int mi = 0; mi < mats.Length; mi++)
+                    {
+                        var m = mats[mi];
+                        if (m == null) continue;
+                        for (int p = 0; p < PropCount(m); p++)
+                        {
+                            if (PropName(m, p).IndexOf("wind", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                            var t = PropType(m, p);
+                            if (Equals(t, MptFloat) || Equals(t, MptRange))
+                                m.SetFloat(p, 0f);
+                            else if (Equals(t, MptVector))
+                                m.SetVector(p, Vector3.zero);
+                        }
+                    }
+                    Plugin.Log(LogLevel.Debug, $"VisibleLockerInterior: '{obj.name}' -- zeroed wind material parameter(s) (vertex wind animation off).");
+                }
+            }
 
             if (Quirk.IsKelp(techType))
                 foreach (var r in obj.GetComponents<Renderer>())
