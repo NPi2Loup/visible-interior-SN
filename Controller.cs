@@ -57,7 +57,7 @@ namespace VisibleLockerInterior
             { "wind", "pulse", "sway", "wave", "anim", "flow", "frequency", "amplitude", "vertex", "motion", "flutter", "bend" };
         private static readonly HashSet<string> animPropsLogged = new HashSet<string>();
 
-        private static bool nonLockerNameLogged = false;
+        private static readonly HashSet<string> nonLockerNamesLogged = new HashSet<string>();
         private static bool nullContainerLogged = false;
 
         // exclude: GameObject of an item that is being removed from the container right now.
@@ -66,13 +66,17 @@ namespace VisibleLockerInterior
         // remains visible" bug reported on the Nexus page).
         public static void UpdateInterior(StorageContainer sc, GameObject? exclude = null)
         {
-            if ("Locker(Clone)" != sc.prefabRoot.name)
+            //Name-based filter, tolerant of extra "(Clone)" suffixes: after an in-game
+            //scene reload the locker prefab can be re-instantiated with a doubled
+            //"(Clone)" suffix, which a strict "Locker(Clone)" match silently rejected
+            //(and the one-shot warning below would have already been spent on another
+            //container, e.g. the lifepod).
+            if (!sc.prefabRoot.name.StartsWith("Locker", StringComparison.Ordinal))
             {
-                if (!nonLockerNameLogged)
+                if (nonLockerNamesLogged.Add(sc.prefabRoot.name))
                 {
-                    nonLockerNameLogged = true;
                     Plugin.Log(LogLevel.Warning,
-                        $"VisibleLockerInterior: StorageContainer prefabRoot name '{sc.prefabRoot.name}' != 'Locker(Clone)' -- mod will not activate for this container. Update the name filter for this game build.");
+                        $"VisibleLockerInterior: StorageContainer prefabRoot name '{sc.prefabRoot.name}' (worldPos {sc.prefabRoot.transform.position}) does not start with 'Locker' -- mod will not activate for this container.");
                 }
                 return;
             }
@@ -95,7 +99,8 @@ namespace VisibleLockerInterior
             Plugin.Log(LogLevel.Info,
                 $"VisibleLockerInterior: UpdateInterior called for {sc.prefabRoot.name}. " +
                 $"Storage Container height={sc.height}, width={sc.width}, internal container size={sc.container.sizeX}x{sc.container.sizeY}. " +
-                $"storageRoot children={storageRoot.transform.childCount}, items={items.Count}, dummies={dummies.Count}");
+                $"storageRoot children={storageRoot.transform.childCount}, items={items.Count}, dummies={dummies.Count}. " +
+                $"locker worldPos={sc.prefabRoot.transform.position} interior worldPos={interior.transform.position}");
             if (items.Count > totalSlots)
                 Plugin.Log(LogLevel.Warning,
                     $"VisibleLockerInterior: {items.Count} stored items exceed totalSlots={totalSlots}; items with the highest TechType will not be displayed.");
@@ -356,6 +361,19 @@ namespace VisibleLockerInterior
                         }
                         if (hasAnim) break;
                     }
+                    //Plant-like items: probe the full shader property list once, EVEN
+                    //without a keyword match -- the animation may be driven by a
+                    //parameter the keyword list does not cover (LogOutput.log).
+                    if (IsPlantish(obj.name) && animPropsLogged.Add(obj.name))
+                    {
+                        Material? first = null;
+                        foreach (var sm in r.sharedMaterials)
+                        {
+                            if (sm != null) { first = sm; break; }
+                        }
+                        if (first != null)
+                            Plugin.Log(LogLevel.Info, $"VisibleLockerInterior: '{obj.name}' -- material properties ({r.sharedMaterials.Length} material(s)): {AllPropNames(first)}");
+                    }
                     if (!hasAnim) continue;
 
                     var mats = r.materials; //instance copies, safe to modify
@@ -375,16 +393,7 @@ namespace VisibleLockerInterior
                                 m.SetInt(p, 0);
                         }
                     }
-                    //The jelly plant pulse is the known problem item: log its full material
-                    //property list once (Info) so any parameter the keywords missed is visible.
-                    if (techType == TechType.JellyPlant && animPropsLogged.Add(obj.name))
-                    {
-                        Plugin.Log(LogLevel.Info, $"VisibleLockerInterior: '{obj.name}' -- material properties: {AllPropNames(mats[0])}");
-                    }
-                    else
-                    {
-                        Plugin.Log(LogLevel.Debug, $"VisibleLockerInterior: '{obj.name}' -- zeroed shader animation parameter(s) (static pose).");
-                    }
+                    Plugin.Log(LogLevel.Debug, $"VisibleLockerInterior: '{obj.name}' -- zeroed shader animation parameter(s) (static pose).");
                 }
             }
 
@@ -650,6 +659,18 @@ namespace VisibleLockerInterior
         private static string F3(Vector3 v)
         {
             return $"({v.x:F3}, {v.y:F3}, {v.z:F3})";
+        }
+
+        //Heuristic: items whose prefab name says plant-like get their shader property
+        //list probed (see SanitizeObject) to pin down animation parameters.
+        private static bool IsPlantish(string name)
+        {
+            string[] markers = { "plant", "kelp", "coral", "vine", "ribbon", "grass", "leaf", "root", "seed", "pustule", "mushroom", "algae", "flower" };
+            foreach (var m in markers)
+            {
+                if (name.IndexOf(m, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            }
+            return false;
         }
 
         private static GameObject GetInteriorInstance(StorageContainer sc)
