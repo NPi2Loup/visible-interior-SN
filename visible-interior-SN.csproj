@@ -1,15 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net481</TargetFramework>
-    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>VisibleLockerInterior</AssemblyName>
     <RootNamespace>VisibleLockerInterior</RootNamespace>
-    <Description>Visible locker interior for Subnautica</Description>
-    <Version>2.0.5</Version>
+    <Description>Visible locker interior for Subnautica: Below Zero</Description>
+    <Version>2.0.5-bz1</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>8.0</LangVersion>
-    <Product>Visible Locker Interior</Product>
+    <Product>Visible Locker Interior (Below Zero)</Product>
     <BepInExPluginGuid>com.russjudge.visiblelockerinterior</BepInExPluginGuid>
+    <!-- Below Zero install (edit when the game lives elsewhere) -->
+    <SubnauticaDir>\\192.168.1.15\SubnauticaZero</SubnauticaDir>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -54,30 +55,37 @@
     <Reference Update="System.Xml.Linq">
       <Private>False</Private>
     </Reference>
-    <!--Raw game assemblies (Subnautica 1.22.83031, June 2026 build). Every member we touch is public and
-          OnClose is patched by name string (see Patches), so no publicizer is needed.
-          Copy the two DLLs from your game install to the repository root (they are
-          gitignored), the same convention as the publicized assemblies used before.-->
+    <!-- Raw Below Zero assemblies (changeset 53872). Every member we touch is public and
+          non-public ones are reached via reflection or Harmony name patches (see Patches.cs),
+          so no publicizer is needed. -->
     <Reference Include="Assembly-CSharp">
-      <HintPath>Assembly-CSharp.dll</HintPath>
+      <HintPath>$(SubnauticaDir)\SubnauticaZero_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>Assembly-CSharp-firstpass.dll</HintPath>
+      <HintPath>$(SubnauticaDir)\SubnauticaZero_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net481" Version="1.0.3" PrivateAssets="all" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="AssemblyPublicizer\" />
   </ItemGroup>
 
   <PropertyGroup>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!-- Deploy dll + mod.json into the BZ plugin folder after each build -->
+  <PropertyGroup>
+    <DeployPath>$(SubnauticaDir)\BepInEx\plugins\VisibleLockerInterior</DeployPath>
+  </PropertyGroup>
+  <Target Name="DeployBz" AfterTargets="Build">
+    <ItemGroup>
+      <DeployFiles Include="$(MSBuildProjectDirectory)\bin\Debug\$(TargetFramework)\$(AssemblyName).dll" />
+      <DeployFiles Include="$(MSBuildProjectDirectory)\mod.json" />
+    </ItemGroup>
+    <MakeDir Directories="$(DeployPath)" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(DeployPath)" />
+  </Target>
 </Project>
