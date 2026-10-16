@@ -49,14 +49,17 @@ namespace VisibleLockerInterior
     }
 
 
-        //OnClose is protected in the game assembly (Subnautica 1.22), so it cannot be
-        //referenced with nameof() from here; patch it by name (Harmony resolves at runtime).
+    //OnClose is protected in the game assembly (Subnautica 1.22), so it cannot be
+    //referenced with nameof() from here; patch it by name (Harmony resolves at runtime).
     [HarmonyPatch(typeof(StorageContainer), "OnClose")]
     internal class PatchCloseAction
     {
         [HarmonyPostfix]
-        public static void Postfix(StorageContainer __instance) =>
+        public static void Postfix(StorageContainer __instance)
+        {
+            LockerDiagnostics.LogOpenClose(__instance, "OnClose");
             Controller.UpdateInterior(__instance);
+        }
     }
 
     //OnOpen (also protected, patch by name) rebuilds the interior on every open.
@@ -69,8 +72,11 @@ namespace VisibleLockerInterior
     internal class PatchOpenAction
     {
         [HarmonyPostfix]
-        public static void Postfix(StorageContainer __instance) =>
+        public static void Postfix(StorageContainer __instance)
+        {
+            LockerDiagnostics.LogOpenClose(__instance, "OnOpen");
             Controller.UpdateInterior(__instance);
+        }
     }
 
     //[HarmonyPatch(typeof(ItemsContainer), nameof(ItemsContainer.OnResize))]
